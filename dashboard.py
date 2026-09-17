@@ -26,7 +26,6 @@ rows = con.execute("""
 """).fetchall()
 con.close()
 
-# ---- group into themes -------------------------------------------------
 themes = collections.defaultdict(lambda: {"reviews": [], "clusters": set()})
 for cid, rid, text, score, at, thumbs in rows:
     if cid not in THEMES:
@@ -54,7 +53,6 @@ for name, t in themes.items():
 data.sort(key=lambda d: -d["n"])
 n_themed = sum(d["n"] for d in data)
 
-# ---- cross-cutting signal counts ---------------------------------------
 all_text = [(THEMES[c], txt or "") for c, _, txt, _, _, _ in rows if c in THEMES]
 signals = []
 for label, pat in SIGNALS.items():
