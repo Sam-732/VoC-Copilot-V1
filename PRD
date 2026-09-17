@@ -1,0 +1,140 @@
+PRD doc : # VoC Copilot — Product Requirements, v1.1
+
+A Voice-of-Customer tool that turns public Swiggy Play Store reviews into ranked complaint themes, and shows the reviews behind every claim so a PM can check the work before repeating it.
+
+| | | | |
+|---|---|---|---|
+| **Owner** | Samprat Trivedi | **Status** | v1 shipped, pipeline complete |
+| **Corpus** | Swiggy · Play Store · India | **Window** | 16 Aug – 15 Sep 2026 (30 days) |
+| **Repo** | [Sam-732/VoC-Copilot-V1](https://github.com/Sam-732/VoC-Copilot-V1) | **Updated** | 17 Sep 2026 |
+
+> This revision replaces the pre-build draft. Three assumptions in that draft turned out to be wrong, and two decisions were changed after measurement. Both are recorded in §6 and §10 rather than quietly corrected.
+
+---
+
+## 1. The problem
+
+A PM on a large Indian consumer app receives thousands of Play Store reviews a month. There are two ways to deal with that today, and both fail differently.
+
+**Read a sample by hand.** Whatever you read first anchors you. You finish with vivid anecdotes and no idea whether the thing that annoyed you annoys forty people or four thousand. It does not scale past an afternoon.
+
+**Watch the aggregate star rating.** It tells you something is wrong and never what. A rating sliding from 4.3 to 4.1 is a fire alarm with no address.
+
+What is missing is the middle: *what are people actually complaining about, how many of them, and can I see the receipts.*
+
+## 2. Why citations are the product
+
+There is no shortage of tools that summarise reviews into a confident paragraph. The paragraph is unverifiable. A PM who carries an unverifiable claim into a prioritisation meeting and gets challenged — "where are you getting that?" — has no recovery, and will not use the tool twice.
+
+So the non-negotiable constraint, which every downstream decision serves:
+
+> **Every theme resolves to the exact reviews behind it.** No claim appears in the output unless the user can read the verbatim source text, its rating and its date. If evidence cannot be shown, the claim is not made.
+
+This is what makes the raw review table append-only, and what makes the thin-evidence guardrail a hard rule rather than a nicety.
+
+## 3. Who it is for
+
+**Primary:** a PM preparing for a sprint or quarterly prioritisation, who needs two or three defensible claims about what users are unhappy about — sized and sourced.
+
+**Secondary:** a support or ops lead checking whether a known issue is growing or fading month over month.
+
+Both are non-technical operators. Neither will tune a clustering parameter. The system must produce a defensible answer at its default settings or it has failed.
+
+## 4. Scope
+
+### What v1 does
+
+| Stage | Behaviour |
+|---|---|
+| **Ingest** | Paginates Play Store reviews newest-first, stopping when a full page falls past the date cutoff. Writes an append-only table keyed on Play's own review ID; committed per batch, so a crash is survivable and a re-run duplicates nothing. |
+| **Clean** | Reads raw, writes a separate table with a foreign key home. Drops reviews under five words, collapses character elongation and punctuation runs, deduplicates identical text. Never modifies raw. |
+| **Cluster** | Embeds each cleaned review with a multilingual sentence model, reduces to five dimensions with UMAP, clusters with HDBSCAN. Reviews that fit no crowd are counted as noise, not hidden. |
+| **Rank** | Orders themes by number of reviews. Displays helpful-vote totals, mean rating and date range alongside, without folding them into the rank. |
+| **Present** | A searchable dashboard: each theme with its size, its cluster IDs, and the verbatim reviews behind it, ordered by how many users marked them helpful. |
+
+### Explicitly out of scope
+
+- **Sentiment scoring.** The star rating is already a sentiment signal, supplied by the user rather than inferred by us.
+- **Competitor comparison as a data source.** A second corpus doubles ingestion and cleaning and adds nothing to the core claim. (Reviews that mention competitors are a theme; scraping a competitor is not.)
+- **Severity inferred from tone.** Angry writing is not the same as a severe problem.
+- **Auto-generated recommendations.** The tool surfaces and cites; the PM decides. A tool that proposes roadmap items invites the user to skip the evidence, which defeats §2.
+- **Deployment, authentication, multi-user.** Local-first, with a static hosted output.
+- **Reply drafting, ticket creation, any write action.** Read-only by design.
+
+## 5. Decisions, and what each one cost
+
+The final column is the point. Every decision here cost something, and being able to name the cost is the difference between a decision and a guess.
+
+| Area | Decision | Why | What it cost |
+|---|---|---|---|
+| **Corpus** | Swiggy, Play Store, India only | High review velocity; complaints separate into distinct operational themes; heavy Hinglish gives the cleaning step real work | No iOS users at all — a skew toward Android-first demographics the output must disclose |
+| **Window** | 30 days | A five-minute pipeline run means ten clustering configurations in an evening. Iteration speed beats corpus size on a first build | Cannot show a six-month trend; one bad week has more weight than it would in a longer window |
+| **Ranking** | Number of reviews mentioning the theme | Two words to explain and impossible to argue with. Helpful votes and mean rating shown alongside, not folded in | A small, severe, widely-endorsed theme ranks below a large mild one — and did (see §8) |
+| **Clustering** | Multilingual embeddings → UMAP → HDBSCAN | Groups by meaning rather than vocabulary, and leaves poor-fit reviews unclustered — which is what makes the minimum-size rule enforceable | Slower, a 450 MB model download, and cluster count not under direct control |
+| **Minimum theme size** | 40 reviews (revised from 15) | At 4,126 reviews a floor of 15 produced 63 fragments, with one complaint scattered across eleven clusters | Themes between 15 and 40 reviews cannot surface at all — see §8 |
+| **Naming** | Themes named by hand from cluster samples | The machine can group but cannot name; naming requires knowing what a PM would act on | Not reproducible. A re-run produces clusters; a human still has to name them |
+| **Storage** | SQLite, raw table append-only | Resumable scrape, and citations always resolve to an unmodified source row | Two tables to keep in sync rather than one dataframe |
+
+## 6. Assumptions, and what happened to them
+
+Written before any data was pulled. Recorded here with outcomes rather than corrected silently.
+
+| | Assumption | Outcome | What happened |
+|---|---|---|---|
+| **A1** | A six-month window and a 5,000-review target are compatible | ❌ **False** | A 200-review recon pull showed ~430 reviews/day. 5,000 reviews is nine days; six months is ~78,000. The two numbers were off by a factor of twenty. Window cut to 30 days. |
+| **A2** | App version is populated often enough to correlate complaints to a release | ⚠️ **Not tested** | The field is collected but the null rate was never measured. "Which release caused this" is therefore not claimed anywhere in the output. |
+| **A3** | A multilingual model handles romanized Hinglish well enough to cluster it | ◐ **Partly true** | Within a theme it works: "extra charge bahut lagata hai" clustered with "charges are very high". At theme level it does not — delivery-delay complaints in Hindi and English formed separate clusters, and Gujarati, Tamil and Bengali reviews collapsed into one undifferentiated cluster regardless of content. |
+| **A4** | Complaints can be separated from sentiment at whole-review level | ❌ **Confirmed problem** | About 18% of hand-labelled reviews carry two or more complaints. Each review is filed under one theme, so secondary complaints are undercounted. Keyword counts across themes are the correction. |
+| **A5** | Play Store reviewers are informative about Swiggy's user base | ⚠️ **Known limit** | They are not representative and never will be. The tool measures what people complain about publicly. Stated as a limitation rather than treated as a finding. |
+
+## 7. What counts as working
+
+A clustering system with no definition of a good cluster cannot be debugged, tuned or defended — you can only look at the output and feel vaguely pleased. The bar was set before results were seen.
+
+### The measurement
+
+200 reviews were sampled from the ≤4★ pool and read by hand; 182 were assigned a complaint label, 60 of them "no signal" (the review carried a rating and nothing readable). That set is frozen and is the only artefact in the project that cannot be regenerated by running a script.
+
+Scoring is pairwise: for any two labelled reviews, did the system group them the way the human did?
+
+| Metric | Config 1 | Config 2 | Config 3 (shipped) |
+|---|---|---|---|
+| Clusters found | 23 | 63 | 24 |
+| Noise | 8% | 47% | 33% |
+| Coverage of labelled complaints | 51% | 51% | 56% |
+| **Pairwise agreement (recall)** | — | **5%** | **21%** |
+
+**Shipped at 21% agreement.** Reading the output confirms the number — roughly a quarter of reviews in any theme belong somewhere else, or equally to two themes. The measurement and the eyeball agree, which is worth more than a higher score would be.
+
+## 8. Known limitations
+
+- **Clustering agreement is 21%.** This narrows 13,000 reviews to a dozen places worth looking. It does not classify reliably enough to act on without reading the evidence.
+- **Theme size is not incidence.** 486 reviews mention delivery delay; that says nothing about how many customers were delayed. Different problems get written about at wildly different rates.
+- **Multi-complaint reviews are undercounted.** Each review is filed once. The cross-theme keyword table is the correction, and shows chatbot complaints at more than double their theme size.
+- **Some themes split by language rather than by complaint.** See A3.
+- **Themes between 15 and 40 reviews are structurally invisible.** The product rule (show anything above 15) and the clustering parameter (40) were set independently and disagree. A real complaint about inflated delivery distances — 27 reviews — falls in that gap.
+- **No per-review permalink exists.** Play Store exposes no public URL for an individual review, so citation means verbatim text, rating and date rather than a link out.
+- **Frequency ranking buries the most-endorsed finding.** The single most-upvoted review in the corpus (150 helpful votes) sits in the smallest theme. Accepted knowingly: an explainable rank beats a better one that cannot be defended.
+
+## 9. What v2 would do
+
+In priority order, and none of it is more clustering parameters — the remaining failure modes are structural.
+
+1. **Primary research.** A short survey asking about a specific recent order — what went wrong, whether support was contacted, what happened, and whether a review was left. The last question measures the bias in the entire dataset.
+2. **Sentence-level splitting**, so a review describing three problems counts in three themes instead of one. Directly attacks A4 and the undercounting in §8.
+3. **A second source.** Replies to @SwiggyCares on X specifically — that is where people go when in-app support fails, which would test the support-as-amplifier finding rather than just adding volume.
+4. **Reconcile the size floor.** Make the product rule and the clustering parameter the same number so themes cannot fall into the gap.
+5. **Stability check.** Run the pipeline twice and measure whether the same themes appear. A tool whose themes shift between runs is not trustworthy, and this has not been tested.
+
+## 10. Revision log
+
+| Version | Change | Reason |
+|---|---|---|
+| v1.0 → v1.1 | Window cut from 6 months to 30 days | Recon pull measured ~430 reviews/day, making the original spec internally inconsistent by 20× (A1) |
+| v1.0 → v1.1 | Minimum theme size raised from 15 to 40 | At 15, one complaint fragmented across eleven clusters; pairwise agreement was 5% |
+| v1.0 → v1.1 | Ranking fixed as frequency only | Severity-weighted and churn-weighted alternatives considered and rejected; star ratings are bimodal so severity adds almost no information |
+| v1.0 → v1.1 | One theme dissolved as a language artefact | The cluster grouped Gujarati, Tamil and Bengali reviews by language rather than by complaint |
+
+---
+
+*Authorship note: the clustering pipeline, the hand-labelled golden set, the taxonomy and the merge decisions are the author's. Claude was used as a pair-programmer throughout — for scaffolding scripts, diagnosing clustering failures, and drafting this document.*
