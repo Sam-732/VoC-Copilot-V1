@@ -37,8 +37,10 @@ def bins_for(first, last):
     return out[::-1]
 
 
-def main():
-    con = sqlite3.connect(C.DB_PATH)
+def build_payload(con):
+    """Everything the page shows, read from reviews.db. Only SELECTs.
+    Used by main() for the static file and by app.py for the live page.
+    Returns (payload, previous run id)."""
     run_id = con.execute("SELECT MAX(run_id) FROM theme_rank_snapshots").fetchone()[0]
     if run_id is None:
         raise SystemExit("no theme snapshot - run rank.py first")
@@ -152,13 +154,23 @@ def main():
         "found": found,
         "bucket": {**bucket, "hist": bucket_hist},
     }
-    html = TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False).replace("</", "<\\/"))
+    return payload, prev_run
+
+
+def render_html(payload):
+    return TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False).replace("</", "<\\/"))
+
+
+def main():
+    con = sqlite3.connect(C.DB_PATH)
+    payload, prev_run = build_payload(con)
     with open(C.DASHBOARD_V2_FILE, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"wrote {C.DASHBOARD_V2_FILE} - assign run {run_id} vs previous {prev_run}")
+        f.write(render_html(payload))
+    comp = payload["complaint"]
+    print(f"wrote {C.DASHBOARD_V2_FILE} - assign run {payload['run']['id']} vs previous {prev_run}")
     print(f"  {len(comp)} complaint themes, {len(payload['separate'])} shown separately, "
           f"positive {payload['positive']['total'] if payload['positive'] else 0}, "
-          f"{len(found)} bucket-found clusters, bucket {bucket['total']}")
+          f"{len(payload['found'])} bucket-found clusters, bucket {payload['bucket']['total']}")
     print(f"  endorsed sub-themes: {[(x['name'], x['endorsed']['id']) for x in comp if x['endorsed']]}")
 
 

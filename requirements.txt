@@ -10,3 +10,4 @@ pandas==2.3.3
 openpyxl==3.1.5
 google-play-scraper==1.2.7
 joblib==1.6.0
+flask==3.1.3

@@ -3,3 +3,5 @@ backups/
 __pycache__/
 exports/
 models/
+reviews.db-wal
+reviews.db-shm

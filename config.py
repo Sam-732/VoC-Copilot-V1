@@ -121,3 +121,8 @@ PURITY_SEED = 11
 CARD_TYPICAL_N = 10              # reviews closest to the centroid shown on a card
 CARD_ENDORSED_N = 5              # most-helpful reviews shown on a card
 CARD_NEAREST_N = 3               # nearest other clusters listed on a card
+
+# ---------- local web app (app.py, phase 4) ----------
+APP_HOST = "127.0.0.1"           # localhost only - the app is never reachable from other machines
+APP_PORT = 5000
+DB_BUSY_TIMEOUT_S = 5            # how long a request waits if the daily job is mid-write
