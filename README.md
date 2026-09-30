@@ -70,6 +70,7 @@ reviews_raw is append-only and never modified, so every citation resolves to an 
 Stack: google-play-scraper, SQLite, sentence-transformers (paraphrase-multilingual-MiniLM-L12-v2), umap-learn, hdbscan, pandas.
 
 Running it
+Verified on Python 3.14.3 with the versions pinned in requirements.txt.
 bash
 pip install -r requirements.txt
 python ingest.py      # ~3 min, writes reviews.db
