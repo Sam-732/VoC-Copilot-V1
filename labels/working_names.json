@@ -1,0 +1,17 @@
+{
+  "_note": "Working names for clusters not in themes.py, written 29 Sep 2026 from each cluster's 8 most typical v1 reviews. For judging placements only; not in themes.py, so v1's dashboard is unchanged.",
+  "names": {
+    "0": "Offers missing, not applying at checkout, or worse than Zomato's",
+    "1": "Generic praise: best food app",
+    "2": "Praise for the app itself: fast, easy to use",
+    "3": "Praise for food quality",
+    "4": "Praise naming Swiggy: fast delivery, prices, covers everything",
+    "6": "Praise for offers, or asking for more offers",
+    "7": "Content-free praise: very nice, emoji",
+    "8": "Language cluster: Gujarati/Hindi script and broken Hinglish, mostly delays",
+    "9": "Praise for good service",
+    "10": "Praise for fast delivery",
+    "23": "Worst app: angry, several complaints at once, no single issue",
+    "106": "Very bad experience: general disappointment, no specific issue"
+  }
+}
