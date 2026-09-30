@@ -1,0 +1,5 @@
+logs/
+backups/
+__pycache__/
+exports/
+models/
