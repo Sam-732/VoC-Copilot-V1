@@ -1,4 +1,5 @@
-import sqlite3, re
+import sqlite3
+from cleaning import clean, is_substantive, dedupe_key
 
 con = sqlite3.connect("reviews.db")
 con.execute("DROP TABLE IF EXISTS reviews_clean")
@@ -12,17 +13,12 @@ rows = con.execute(
     "SELECT review_id, content, score, at, app_version FROM reviews_raw "
     "WHERE content IS NOT NULL AND TRIM(content) != ''").fetchall()
 
-def clean(t):
-    t = re.sub(r'(.)\1{2,}', r'\1\1', t)     # sirrrrr -> sirr, goooood -> good
-    t = re.sub(r'([!?.,])\1+', r'\1', t)     # !!!!! -> !
-    return re.sub(r'\s+', ' ', t).strip()
-
 seen, order = {}, []
 for rid, content, score, at, ver in rows:
     t = clean(content)
-    if len(t.split()) < 5:
+    if not is_substantive(t):
         continue
-    key = t.lower()
+    key = dedupe_key(t)
     if key in seen:
         seen[key][1] += 1
     else:
