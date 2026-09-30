@@ -5,7 +5,6 @@ THEMES = {
     18: "Delivery runs far past the ETA, and cancelling costs money",
     21: "Delivery runs far past the ETA, and cancelling costs money",
 
-    17: "Order arrives wrong or spoiled and resolution is refused",
     15: "Support gives scripted non-answers, nobody takes accountability",
     5:  "Fees stack up - platform, packaging, surge, delivery",
     13: "every escalation route fails",
