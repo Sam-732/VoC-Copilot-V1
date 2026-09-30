@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ title }} — Swiggy VoC</title>
+<style>
+{{ style|safe }}
+.bars{display:block;width:100%;height:64px;overflow:visible}
+.bars .ax{font-family:var(--mono);font-size:10px;fill:var(--faint)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.grid{border-collapse:collapse;background:var(--surface);border:1px solid var(--rule);font-size:13px;width:100%}
+table.grid th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+  text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);font-weight:500;white-space:nowrap}
+table.grid td{padding:7px 10px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+table.grid td.n,table.grid th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.grid tr.old td{color:var(--faint)}
+table.grid td.name{min-width:220px}
+.pill{font-family:var(--mono);font-size:10.5px;border:1px solid var(--rule);border-radius:2px;padding:0 5px;color:var(--muted)}
+.pill.warn{border-color:var(--warn);color:var(--warn)} .pill.bad{border-color:var(--flag);color:var(--flag)}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:3px;padding:14px 18px;margin-bottom:12px}
+.row{display:grid;grid-template-columns:minmax(160px,260px) 1fr;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--rule-soft)}
+.row .nm{font-size:13.5px;font-weight:600;line-height:1.3} .row .nm small{display:block;font-weight:400;color:var(--muted);font-family:var(--mono);font-size:11px}
+.sortby a{color:var(--accent)} .sortby b{color:var(--ink)}
+form.search{display:flex;gap:8px;margin:6px 0 18px}
+form.search input{flex:1;min-width:0;padding:9px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--ink);
+  border:1px solid var(--rule);border-radius:3px}
+form.search button{font:inherit;font-size:13px;padding:8px 14px;background:var(--accent);color:var(--bg);border:0;border-radius:3px;cursor:pointer}
+form.search input:focus,form.search button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (max-width:620px){.row{grid-template-columns:1fr;gap:4px}}
+</style></head><body>
+<div class="wrap">
+{% include "_nav.html" %}
+<header><h1>{{ title }}</h1>{% if intro %}<p class="scope">{{ intro }}</p>{% endif %}</header>
+{% block body %}{% endblock %}
+</div>
+</body></html>

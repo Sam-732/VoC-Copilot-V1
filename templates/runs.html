@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Ingest runs — fetching new reviews</h2>
+<div class="scroll"><table class="grid">
+<thead><tr><th>#</th><th>Started</th><th>Status</th><th>From (newest stored)</th><th class="n">Fetched</th><th class="n">New raw</th><th class="n">New clean</th><th class="n">Per day</th><th>Notes</th></tr></thead>
+<tbody>{% for x in r.ingest %}<tr><td class="n">{{ x.id }}</td><td>{{ x.started[:16]|replace("T", " ") }}</td>
+<td>{% if x.status == "success" %}<span class="pill">success</span>{% elif x.status == "failed" %}<span class="pill bad">failed</span>{% else %}<span class="pill warn">{{ x.status }}</span>{% endif %}
+{% if x.anomalous %} <span class="pill warn">anomalous</span>{% endif %}</td>
+<td>{{ (x.since or "")[:16]|replace("T", " ") }}</td><td class="n">{{ x.fetched if x.fetched is not none else "—" }}</td>
+<td class="n">{{ x.inserted if x.inserted is not none else "—" }}</td><td class="n">{{ x.clean_inserted if x.clean_inserted is not none else "—" }}</td>
+<td class="n">{{ '%.0f' % x.per_day if x.per_day is not none else "—" }}</td><td>{{ x.anomaly or x.error or "" }}</td></tr>
+{% else %}<tr><td colspan="9">No ingest runs yet.</td></tr>{% endfor %}</tbody></table></div>
+
+<h2>Assign runs — placing reviews into clusters</h2>
+<p class="h2note">Newest first. Runs before the latest reset (run {{ r.current_from }}) are greyed: their results
+were discarded and redone.</p>
+<div class="scroll"><table class="grid">
+<thead><tr><th>#</th><th>Started</th><th>Status</th><th class="n">Threshold</th><th class="n">Pending</th><th class="n">Placed</th><th class="n">To bucket</th><th class="n">Bucket after</th><th class="n">New clusters</th><th>Error</th></tr></thead>
+<tbody>{% for a in r.assign %}<tr class="{{ 'old' if a.id < r.current_from else '' }}"><td class="n">{{ a.id }}</td>
+<td>{{ a.started[:16]|replace("T", " ") }}</td>
+<td>{% if a.status == "reset" %}<span class="pill warn">reset</span>{% elif a.status == "failed" %}<span class="pill bad">failed</span>{% else %}<span class="pill">{{ a.status }}</span>{% endif %}</td>
+<td class="n">{{ a.threshold if a.threshold is not none else "—" }}</td><td class="n">{{ a.pending if a.pending is not none else "—" }}</td>
+<td class="n">{{ a.assigned if a.assigned is not none else "—" }}</td><td class="n">{{ a.unassigned if a.unassigned is not none else "—" }}</td>
+<td class="n">{{ a.bucket_after if a.bucket_after is not none else "—" }}</td><td class="n">{{ a.new_clusters or "" }}</td><td>{{ a.error or "" }}</td></tr>
+{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>Rank after each run — complaint themes</h2>
+<p class="h2note">Rank by total reviews after each daily run since the last reset. "v1 only" is the starting
+point, before any daily placement. ▲/▼ mark a change from the run before.</p>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Theme</th>{% for r in t.runs %}<th class="n">{{ r.label }}</th>{% endfor %}</tr></thead>
+<tbody>{% for th in t.themes %}<tr><td class="name">{{ th.name }}</td>
+{% for rk in th.ranks %}{% set prev = th.ranks[loop.index0 - 1] if loop.index0 > 0 else rk %}
+<td class="n">{% if rk is none %}—{% else %}{{ rk }}{% if prev and rk < prev %} <span class="mv up">▲</span>{% elif prev and rk > prev %} <span class="mv down">▼</span>{% endif %}{% endif %}</td>
+{% endfor %}</tr>{% endfor %}</tbody></table></div>
+
+<h2>Reviews per day — complaint themes</h2>
+<p class="h2note">By review date, {{ t.days[0] }} → {{ t.days[-1] }}. Each chart has its own scale (its maximum is
+labelled). The dashed line is {{ t.v2start }}: before it, v1 cluster membership; after it, daily placement.
+The two methods differ, so a step at that line is not a trend. Hover a bar for its date and count.</p>
+{% for th in t.themes %}<div class="row"><div class="nm">{{ th.name }}<small>{{ th.total }} reviews</small></div>
+{{ bars(th.daily, t.days, t.v2start, "daily placement starts " ~ t.v2start) }}</div>{% endfor %}
+
+<h2>Unassigned bucket</h2>
+<p class="h2note">Size after each run:
+{% for r in t.runs %}{{ r.label }} <b>{{ r.bucket if r.bucket is not none else "—" }}</b>{% if not loop.last %} · {% endif %}{% endfor %}.
+It drops when re-clustering moves reviews into a new cluster. Below: reviews currently in the bucket, by review date.</p>
+<div class="row"><div class="nm">Unassigned now<small>{{ t.bucket_daily|sum }} reviews</small></div>{{ bars(t.bucket_daily, t.days) }}</div>
+{% endblock %}

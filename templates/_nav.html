@@ -1,0 +1,14 @@
+<style>
+.appnav{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center;font-family:var(--mono);font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;margin:0 0 26px;padding-bottom:10px;border-bottom:1px solid var(--rule)}
+.appnav a{color:var(--muted);text-decoration:none;padding:3px 0;border-bottom:2px solid transparent}
+.appnav a:hover{color:var(--ink)}
+.appnav a[aria-current=page]{color:var(--ink);border-bottom-color:var(--accent)}
+.appnav .live{margin-left:auto;color:var(--faint);text-transform:none;letter-spacing:0}
+</style>
+<nav class="appnav" aria-label="Pages">
+  {% for href, label in [("/", "Themes"), ("/trends", "Trends"), ("/bucket", "Bucket"), ("/search", "Search"), ("/runs", "Runs")] %}
+  <a href="{{ href }}"{% if href == active %} aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+  <span class="live">live from reviews.db · read-only</span>
+</nav>

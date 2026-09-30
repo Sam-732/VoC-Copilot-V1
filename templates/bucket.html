@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import review %}
+{% block body %}
+<h2>Clusters found in the bucket — awaiting review</h2>
+<p class="h2note">Found by re-clustering reviews that fit no existing theme. Not named or placed yet.
+"Typical spread" is the median distance from a member to the cluster's centre; v1 clusters sit around 0.28.
+Read labels/NOTES.md before trusting these: cluster 30 did not re-form under other run schedules.</p>
+{% for f in b.found %}<div class="card">
+  <h3 class="tname">Cluster {{ f.id }} <span class="kind">{{ f.size }} reviews ({{ f.size_at_creation }} when found)</span></h3>
+  <div class="tmeta"><span>reviews dated {{ f.first }} → {{ f.last }}</span><span>mean {{ '%.1f' % f.mean }}★</span>
+    <span>stars 1–5: {{ f.stars|join(' / ') }}</span><span>typical spread {{ '%.2f' % f.radius }}</span></div>
+  <div class="tmeta" style="margin-top:4px"><span>nearest:</span>{% for n in f.nearest %}<span>{{ n.id }} {{ n.theme }} ({{ '%.2f' % n.distance }})</span>{% endfor %}</div>
+  <details style="margin-top:8px"><summary class="rmeta" style="cursor:pointer">{{ f.typical|length }} most typical reviews</summary>
+    {% for r in f.typical %}{{ review(r) }}{% endfor %}</details>
+</div>{% endfor %}
+
+<h2>Unassigned reviews ({{ b.unassigned|length }})</h2>
+<p class="h2note sortby">Sort by:
+{% for key, label in [("distance", "furthest from any cluster"), ("date", "newest"), ("helpful", "most helpful")] %}
+{% if b.sort == key %}<b>{{ label }}</b>{% else %}<a href="?sort={{ key }}">{{ label }}</a>{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}.
+Each shows the nearest cluster it was too far from to join.</p>
+{% for r in b.unassigned %}{{ review(r, "nearest: " ~ r.nearest ~ " " ~ r.nearest_theme ~ ", distance " ~ ('%.2f' % r.distance)) }}{% endfor %}
+{% endblock %}

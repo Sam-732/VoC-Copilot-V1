@@ -157,8 +157,10 @@ def build_payload(con):
     return payload, prev_run
 
 
-def render_html(payload):
-    return TEMPLATE.replace("__DATA__", json.dumps(payload, ensure_ascii=False).replace("</", "<\\/"))
+def render_html(payload, nav=""):
+    """nav: extra HTML placed above the header (the app's navigation bar); empty for the static file."""
+    return (TEMPLATE.replace("__STYLE__", STYLE).replace("__NAV__", nav)
+            .replace("__DATA__", json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")))
 
 
 def main():
@@ -174,13 +176,7 @@ def main():
     print(f"  endorsed sub-themes: {[(x['name'], x['endorsed']['id']) for x in comp if x['endorsed']]}")
 
 
-TEMPLATE = r"""<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Swiggy VoC — daily</title>
-<style>
-:root{
+STYLE = r""":root{
   --bg:#f4f6f5; --surface:#fff; --ink:#131a19; --muted:#5c6a66; --faint:#8d9b97;
   --rule:#e0e7e5; --rule-soft:#edf2f1; --accent:#0e6a66; --accent-soft:#cfe5e3;
   --warn:#8a5a14; --flag:#9c3a20; --up:#0e6a66; --down:#9c3a20;
@@ -275,9 +271,18 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--rule);font-fa
   .colhead span:nth-child(4),.colhead span:nth-child(5),.thead .c4,.thead .c5{display:none}
   .wrap{padding-block:28px 60px}
 }
-</style></head><body>
+"""
+# ^ shared with the app's other pages (templates/base.html) so every page looks the same.
+
+TEMPLATE = r"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Swiggy VoC — daily</title>
+<style>
+__STYLE__</style></head><body>
 <div class="wrap">
-<header>
+__NAV__<header>
   <h1>Swiggy — Voice of Customer, daily</h1>
   <p class="scope" id="scope"></p>
 </header>
