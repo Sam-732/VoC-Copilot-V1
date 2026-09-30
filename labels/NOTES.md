@@ -234,3 +234,9 @@ Fill in the reason column for every label.
 The bucket is re-clustered only on what's left in it, and each cluster found removes its
 reviews, so which clusters form depends on how many days had piled up at each run. The same
 reviews replayed on a different schedule re-formed only 22-66% of cluster 30.
+
+### 7. Dashboard counts are provisional
+Daily runs use the provisional 0.58 threshold and the unfixed bucket re-clustering (item 6), so dashboard counts are not final.
+
+### 8. Phase 4 framework (Samprat, 30 Sep 2026)
+Flask. Dropped the 'match v1's dashboard stack' rule: the dashboard now needs to write flags and labels, which a static page can't do.
