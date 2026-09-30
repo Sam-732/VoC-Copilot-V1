@@ -114,7 +114,8 @@ Scoring is pairwise: for any two labelled reviews, did the system group them the
 - **Some themes split by language rather than by complaint.** See A3.
 - **Themes between 15 and 40 reviews are structurally invisible.** The product rule (show anything above 15) and the clustering parameter (40) were set independently and disagree. A real complaint about inflated delivery distances — 27 reviews — falls in that gap.
 - **No per-review permalink exists.** Play Store exposes no public URL for an individual review, so citation means verbatim text, rating and date rather than a link out.
-- **Frequency ranking buries the most-endorsed finding.** The single most-upvoted review in the corpus (150 helpful votes) sits in the smallest theme. Accepted knowingly: an explainable rank beats a better one that cannot be defended.
+- **Frequency ranking buries the most-endorsed finding.** The most-upvoted review in any theme (150 helpful votes) sits in the smallest theme. Accepted knowingly: an explainable rank beats a better one that cannot be defended.
+- **Clustering buries the single most-endorsed review.** The most-upvoted review in the whole corpus (2,590 helpful votes — insects in food, support that brushed it off) was left in HDBSCAN's noise and appears in no theme. *(Corrected 30 Sep 2026: an earlier revision called the 150-vote review the corpus maximum.)*
 
 ## 9. What v2 would do
 

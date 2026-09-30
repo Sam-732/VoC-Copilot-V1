@@ -27,7 +27,9 @@ Happy users say nothing. Of 7,162 five-star reviews, almost none are longer than
 
 Support failure is an amplifier, not a theme. In my hand-labelled sample, "customer care" was mentioned almost as often as delivery delay — but it was the primary complaint only 40% of the time it appeared. It rides on top of other failures and turns an annoyance into a one-star review.
 
-Volume and agreement run in opposite directions. The most-upvoted review in the whole corpus (150 "found helpful") sits in the smallest theme — hidden fees and subscription benefits not being honoured. The biggest theme's top review got 21. People write about delivery delays; they endorse complaints about being overcharged.
+Volume and agreement run in opposite directions. The most-upvoted review in any theme (150 "found helpful") sits in the smallest theme — hidden fees and subscription benefits not being honoured. The biggest theme's top review got 21. Within the themes, people write about delivery delays but endorse complaints about being overcharged. The most-upvoted review in the whole corpus — 2,590 helpful votes, about insects in the fries and support that brushed it off — was never clustered at all: HDBSCAN left it in noise. Both frequency ranking and clustering bury the complaints people endorse most.
+
+*(Corrected 30 Sep 2026: an earlier version called the 150-vote review the most-upvoted in the whole corpus. It is the most-upvoted inside a theme; the corpus maximum is the unclustered 2,590-vote review.)*
 
 What's wrong with it
 
