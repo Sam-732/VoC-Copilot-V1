@@ -73,6 +73,7 @@ Stack: google-play-scraper, SQLite, sentence-transformers (paraphrase-multilingu
 
 Running it
 Verified on Python 3.14.3 with the versions pinned in requirements.txt.
+The daily Task Scheduler task ("VoC Copilot daily") runs C:\Users\Samprat\AppData\Local\Programs\Python\Python314\pythonw.exe with run_daily_hidden.pyw - that is the Python 3.14 install path, so update the task's program after a Python upgrade.
 bash
 pip install -r requirements.txt
 python ingest.py      # ~3 min, writes reviews.db
