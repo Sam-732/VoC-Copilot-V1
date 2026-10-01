@@ -240,3 +240,14 @@ Daily runs use the provisional 0.58 threshold and the unfixed bucket re-clusteri
 
 ### 8. Phase 4 framework (Samprat, 30 Sep 2026)
 Flask. Dropped the 'match v1's dashboard stack' rule: the dashboard now needs to write flags and labels, which a static page can't do.
+
+### 9. First scheduled run, 1 Oct 2026: assign interrupted (run 77 changed by hand)
+The task started at 21:00. Ingest run 2 succeeded (884 fetched, 880 new raw, 296 new clean).
+Assign run 77 started at 21:00:12 and was stopped by Ctrl+C or the console window closing
+(exit 0xC000013A; logs/assign.log holds only "^C"), so rank and the dashboard rebuild never ran.
+Nothing was written - assign commits in one transaction at the end - but run 77 stayed
+'running', because the failure handler caught Exception and Ctrl+C isn't one.
+Changed by hand: run 77's status set to 'failed' with that explanation, so it doesn't look like a
+run in progress. Fixes: interrupted runs are now recorded as failed, the next run marks stale
+'running' rows as failed (runstate.py), and the task now starts without a window
+(run_daily_hidden.pyw). The 296 reviews were assigned in a manual catch-up run the same evening.
