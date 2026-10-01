@@ -12,6 +12,8 @@ Pages (step 2 - all read-only):
     /bucket    clusters found in the bucket, and every unassigned review
     /search    search the text of every review
     /runs      every ingest run and assign run
+Step 3 - read-only:
+    /whatif    preview placement under another threshold; saves nothing
 """
 import re
 import sqlite3
@@ -103,6 +105,31 @@ def runs():
     return render_template("runs.html", active="/runs", title="Runs",
                            intro="What each daily run did, including failures and anomalies.",
                            r=with_con(queries.runs))
+
+
+def _threshold(raw, default):
+    """A threshold from the form, or default if blank. Raises ValueError if out of range."""
+    if raw is None or raw.strip() == "":
+        return default
+    v = float(raw)
+    if not C.WHATIF_MIN <= v <= C.WHATIF_MAX:
+        raise ValueError
+    return v
+
+
+@app.get("/whatif")
+def whatif():
+    """Preview: how reviews and your labels would be placed under another threshold. Saves nothing."""
+    error = None
+    try:
+        t = _threshold(request.args.get("t"), C.ASSIGNMENT_THRESHOLD)
+        td = _threshold(request.args.get("td"), None)
+    except ValueError:
+        error = f"Thresholds must be numbers between {C.WHATIF_MIN} and {C.WHATIF_MAX}; showing the current setting."
+        t, td = C.ASSIGNMENT_THRESHOLD, None
+    return render_template("whatif.html", active="/whatif", title="What if",
+                           intro="Try a different threshold and see what it would change. Nothing is saved.",
+                           w=with_con(queries.whatif, t, td), error=error, lo=C.WHATIF_MIN, hi=C.WHATIF_MAX)
 
 
 if __name__ == "__main__":

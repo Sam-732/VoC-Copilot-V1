@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="caveat" role="note"><b>Preview only — nothing here is saved or applied.</b>
+config.py still says {{ w.base_t }}, and this page opens reviews.db read-only. Changing the real threshold is a
+separate decision: edit <code>ASSIGNMENT_THRESHOLD</code>, then <code>python assign.py --reset</code> and re-run.</div>
+
+<form class="search" method="get" action="/whatif" style="flex-wrap:wrap;align-items:end">
+  <label style="flex:1;min-width:150px;font-size:13px;color:var(--muted)">Global threshold
+    <input type="number" name="t" step="0.01" min="{{ lo }}" max="{{ hi }}" value="{{ '%.2f' % w.t }}" required style="width:100%"></label>
+  <label style="flex:1;min-width:150px;font-size:13px;color:var(--muted)">Delivery sub-themes {{ w.override_ids|join(' and ') }} only (optional)
+    <input type="number" name="td" step="0.01" min="{{ lo }}" max="{{ hi }}" value="{{ '%.2f' % w.td if w.td is not none else '' }}" placeholder="same as global" style="width:100%"></label>
+  <button type="submit">Preview</button>
+</form>
+{% if error %}<p class="empty" style="color:var(--flag)">{{ error }}</p>{% endif %}
+<p class="h2note">For reference, 95% of each delivery sub-theme's own v1 reviews sit within:
+{% for k, v in w.override_p95.items() %}sub-theme {{ k }} {{ '%.2f' % v }}{% if not loop.last %}, {% endif %}{% endfor %}.
+Current setting: {{ w.base_t }} everywhere.</p>
+
+<h2>Your {{ w.n_threshold + w.n_purity }} labelled reviews</h2>
+<p class="h2note">Each review is compared with the v1 clusters again at both settings. The two kinds of label answer
+different questions, so they're counted separately.</p>
+{% for title, src, keys, note in [
+  ("Threshold labels (" ~ w.n_threshold ~ ")", "threshold", w.threshold_keys,
+   "Your verdict judged the placement shown: was this review right for that cluster?"),
+  ("Cluster 31 purity labels (" ~ w.n_purity ~ ")", "purity", w.purity_keys,
+   "Cluster 31 purity labels answer \"is this a late-delivery / cancellation complaint, i.e. does it belong in the Delivery theme?\" The " ~ w.n_purity ~ " reviews were sampled from cluster 31; they're scored by whether the preview places them in any Delivery sub-theme (2, 3 or 4), not by cluster 31.")] %}
+<h3 class="tname" style="margin-top:14px">{{ title }}</h3>
+<p class="h2note" style="margin-bottom:6px">{{ note }}</p>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Outcome</th><th class="n">At {{ w.base_t }}</th><th class="n">This setting</th></tr></thead>
+<tbody>{% for k in keys %}{% set b0 = w.sum_base[src][k] %}{% set s0 = w.sum_set[src][k] %}<tr><td>{{ k }}</td><td class="n">{{ b0 }}</td>
+<td class="n">{{ s0 }}{% if s0 != b0 %} <span class="mv {{ 'down' if 'wrong' in k else 'up' if ('right' in k) else 'same' }}">({{ '%+d' % (s0 - b0) }})</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% endfor %}
+
+<div class="scroll" style="margin-top:12px"><table class="grid">
+<thead><tr><th>Label</th><th>Your verdict</th><th>Nearest v1 cluster</th><th class="n">Distance</th><th>At {{ w.base_t }}</th><th>This setting</th><th>Review</th></tr></thead>
+<tbody>{% for x in w.labels %}<tr{% if x.base != x.set %} style="background:var(--accent-soft)"{% endif %}>
+<td>{{ x.source }}</td><td>{{ x.verdict }}</td><td>{{ x.cluster }} · {{ x.theme }}</td><td class="n">{{ '%.2f' % x.distance }}</td>
+<td>{{ x.base }}</td><td><b>{{ x.set }}</b></td><td style="min-width:260px">{{ x.text[:160] }}{% if x.text|length > 160 %}…{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+<p class="h2note">Highlighted rows change between the two settings.</p>
+
+<h2>Per theme: reviews placed since v1</h2>
+<p class="h2note">All {{ w.total.n }} reviews placed since v1, by nearest v1 cluster's theme.
+{% if w.td is not none %}Themes marked * contain sub-themes {{ w.override_ids|join(' and ') }}, which use {{ '%.2f' % w.td }}.{% endif %}
+Clusters found in the bucket are left out, and bucket re-clustering isn't simulated, so the "{{ w.base_t }}" columns
+differ from the live dashboard (which also counts reviews placed into bucket-found clusters).</p>
+<div class="scroll"><table class="grid">
+<thead><tr><th>Theme</th><th class="n">Reviews</th><th class="n">Placed at {{ w.base_t }}</th><th class="n">Bucket at {{ w.base_t }}</th>
+<th class="n">Placed</th><th class="n">Bucket</th><th class="n">Bucket share</th><th class="n">Change in bucket</th></tr></thead>
+<tbody>{% for r in w.table %}<tr><td class="name">{{ r.name }}{% if r.override and w.td is not none %} *{% endif %}{% if r.kind != 'complaint' %} <span class="pill">{{ r.kind }}</span>{% endif %}</td>
+<td class="n">{{ r.n }}</td><td class="n">{{ r.base_placed }}</td><td class="n">{{ r.base_bucket }} ({{ (100 * r.base_bucket / r.n)|round|int }}%)</td>
+<td class="n"><b>{{ r.set_placed }}</b></td><td class="n"><b>{{ r.set_bucket }}</b></td><td class="n"><b>{{ (100 * r.set_bucket / r.n)|round|int }}%</b></td>
+<td class="n">{% set d = r.set_bucket - r.base_bucket %}{{ '%+d' % d if d else '—' }}</td></tr>{% endfor %}
+<tr><td class="name"><b>All</b></td><td class="n">{{ w.total.n }}</td><td class="n">{{ w.total.base_placed }}</td>
+<td class="n">{{ w.total.base_bucket }} ({{ (100 * w.total.base_bucket / w.total.n)|round|int }}%)</td>
+<td class="n"><b>{{ w.total.set_placed }}</b></td><td class="n"><b>{{ w.total.set_bucket }}</b></td>
+<td class="n"><b>{{ (100 * w.total.set_bucket / w.total.n)|round|int }}%</b></td>
+<td class="n">{% set d = w.total.set_bucket - w.total.base_bucket %}{{ '%+d' % d if d else '—' }}</td></tr></tbody></table></div>
+{% endblock %}

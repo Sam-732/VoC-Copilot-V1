@@ -129,3 +129,13 @@ DB_BUSY_TIMEOUT_S = 5            # how long a request waits if the daily job is 
 SEARCH_MIN_CHARS = 2             # shorter search terms are ignored
 SEARCH_MAX_RESULTS = 200         # most results shown for one search
 BUCKET_TYPICAL_N = 5             # typical reviews shown per bucket-found cluster in the bucket browser
+
+# ---------- "what if" threshold preview (app.py /whatif, phase 4 step 3) - read-only ----------
+WHATIF_MIN = 0.05                # accepted threshold range in the form
+WHATIF_MAX = 3.0
+WHATIF_OVERRIDE_DISPLAY_IDS = (2, 3)   # sub-themes the optional second threshold applies to (the wide delivery ones)
+THRESHOLD_LABELS_FILE = "labels/threshold_labels.csv"
+# hand purity labels: file, the display id of the cluster sampled, and the theme a "yes" belongs in
+PURITY_LABEL_SOURCES = [
+    {"file": "labeling cluster 31.txt", "cluster": 31, "yes_theme": "delivery_late"},
+]

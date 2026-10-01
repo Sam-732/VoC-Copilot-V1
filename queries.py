@@ -148,3 +148,129 @@ def runs(con):
                                       unassigned, bucket_after, new_clusters, error
                                       FROM assign_runs ORDER BY run_id DESC""")]
     return {"ingest": ingest, "assign": assign, "current_from": _since_reset(con)}
+
+
+def _read_labels(path):
+    """A label file saved by the pipeline (UTF-8 CSV) or by Excel as 'Unicode text' (UTF-16, tabs)."""
+    import csv, io
+    raw = open(path, "rb").read()
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return list(csv.DictReader(io.StringIO(raw.decode("utf-16")), delimiter="\t"))
+    return list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig"))))
+
+
+def whatif(con, t, td=None):
+    """Preview of placement under a global threshold t, and optionally td for the sub-themes in
+    WHATIF_OVERRIDE_DISPLAY_IDS. Compared with the same calculation at the current threshold.
+
+    Method: every review placed since v1 is compared again with the 30 frozen v1 centroids, from
+    its stored vector. Clusters found in the bucket are left out on purpose - they only exist
+    because of what the bucket held at 0.58, and bucket re-clustering is not simulated.
+    Nothing is written."""
+    themes, clusters = _taxonomy(con)
+    rows = con.execute("SELECT cluster, vec FROM centroids WHERE origin = 'initial' ORDER BY cluster").fetchall()
+    ids = [r[0] for r in rows]
+    cents = np.stack([S.from_blob(r[1]) for r in rows])
+    disp = {c: clusters[c]["id"] for c in ids}
+    theme_of = {c: clusters[c]["theme"] for c in ids}
+    override = {c for c in ids if disp[c] in C.WHATIF_OVERRIDE_DISPLAY_IDS}
+
+    def limit(c, g, o):
+        return o if (o is not None and c in override) else g
+
+    new = con.execute("""SELECT a.review_id, v.red FROM assignments a JOIN review_vectors v USING (review_id)
+                         WHERE a.source != 'initial'""").fetchall()
+    D = S.distances(np.stack([S.from_blob(v) for _, v in new]), cents)
+    near = [ids[k] for k in D.argmin(1)]
+    dist = D.min(1)
+
+    base_t = C.ASSIGNMENT_THRESHOLD
+    agg = {k: {"n": 0, "base": 0, "set": 0} for k in themes}
+    for c, d in zip(near, dist):
+        a = agg[theme_of[c]]
+        a["n"] += 1
+        a["base"] += d < base_t
+        a["set"] += d < limit(c, t, td)
+    order = [k for k in themes if themes[k]["kind"] == "complaint"] + \
+            [k for k in themes if themes[k]["kind"] in ("separate", "positive")]
+    table = []
+    for k in order:
+        a = agg[k]
+        if not a["n"]:
+            continue
+        table.append({"name": themes[k]["name"], "kind": themes[k]["kind"], "n": a["n"],
+                      "base_placed": a["base"], "base_bucket": a["n"] - a["base"],
+                      "set_placed": a["set"], "set_bucket": a["n"] - a["set"],
+                      "override": any(disp[c] in C.WHATIF_OVERRIDE_DISPLAY_IDS for c in ids if theme_of[c] == k)})
+    tot = {x: sum(r[x] for r in table) for x in ("n", "base_placed", "base_bucket", "set_placed", "set_bucket")}
+
+    def vec(review_id):
+        v = S.from_blob(con.execute("SELECT red FROM review_vectors WHERE review_id = ?", (review_id,)).fetchone()[0])
+        d = S.distances(v[None], cents)[0]
+        k = int(d.argmin())
+        return ids[k], float(d[k])
+
+    def outcome_threshold(right, placed):
+        return {(True, True): "right, placed", (False, True): "WRONG, placed",
+                (True, False): "right, lost to bucket", (False, False): "wrong, kept out"}[(right, placed)]
+
+    def outcome_purity(yes, placed, into_yes_theme):
+        if not placed:
+            return "delivery complaint left in bucket" if yes else "not placed (right home unknown)"
+        if into_yes_theme:
+            return "right, placed in Delivery" if yes else "WRONG, placed in Delivery"
+        return "WRONG, placed outside Delivery" if yes else "placed elsewhere (can't tell)"
+
+    labels = []
+    for r in _read_labels(C.THRESHOLD_LABELS_FILE):
+        c, d = vec(r["review_id"])
+        right = r["verdict"].strip().lower() == "right"
+        pb, ps = d < base_t, d < limit(c, t, td)
+        labels.append({"source": "threshold", "verdict": r["verdict"].strip().lower(), "text": r["text"],
+                       "cluster": disp[c], "theme": themes[theme_of[c]]["name"], "distance": d,
+                       "base": outcome_threshold(right, pb), "set": outcome_threshold(right, ps)})
+    for src in C.PURITY_LABEL_SOURCES:
+        for r in _read_labels(src["file"]):
+            v = r["verdict"].strip().lower()
+            if v not in ("yes", "no"):
+                continue
+            c, d = vec(r["review_id"])
+            yes, into = v == "yes", theme_of[c] == src["yes_theme"]
+            labels.append({"source": f"cluster {src['cluster']} purity", "verdict": v, "text": r["text"],
+                           "cluster": disp[c], "theme": themes[theme_of[c]]["name"], "distance": d,
+                           "base": outcome_purity(yes, d < base_t, into),
+                           "set": outcome_purity(yes, d < limit(c, t, td), into)})
+
+    # threshold labels and purity labels answer different questions, so they're counted apart
+    purity_keys = {
+        "right, placed in Delivery": "yes, placed in Delivery (right)",
+        "WRONG, placed outside Delivery": "yes, placed outside Delivery (wrong)",
+        "delivery complaint left in bucket": "yes, left in bucket",
+        "WRONG, placed in Delivery": "no, placed in Delivery (wrong)",
+        "placed elsewhere (can't tell)": "no, placed elsewhere (can't tell)",
+        "not placed (right home unknown)": "no, left in bucket (can't tell)",
+    }
+    threshold_keys = {"right, placed": "right, placed", "WRONG, placed": "wrong, placed",
+                      "right, lost to bucket": "right, lost to bucket", "wrong, kept out": "wrong, kept out"}
+
+    def summary(key):
+        out = {"threshold": collections.Counter(), "purity": collections.Counter()}
+        for x in labels:
+            if x["source"] == "threshold":
+                out["threshold"][threshold_keys[x[key]]] += 1
+            else:
+                out["purity"][purity_keys[x[key]]] += 1
+        return out
+
+    radius = {}
+    for c in override:
+        ds = [d for (d,) in con.execute("SELECT distance FROM assignments WHERE source='initial' AND cluster=?", (c,))]
+        radius[disp[c]] = float(np.percentile(ds, 95))
+
+    return {"t": t, "td": td, "base_t": base_t, "override_ids": list(C.WHATIF_OVERRIDE_DISPLAY_IDS),
+            "override_p95": dict(sorted(radius.items())), "table": table, "total": tot,
+            "labels": labels, "sum_base": summary("base"), "sum_set": summary("set"),
+            "threshold_keys": list(threshold_keys.values()), "purity_keys": list(purity_keys.values()),
+            "n_threshold": sum(x["source"] == "threshold" for x in labels),
+            "n_purity": sum(x["source"] != "threshold" for x in labels),
+            "purity_sources": C.PURITY_LABEL_SOURCES}
