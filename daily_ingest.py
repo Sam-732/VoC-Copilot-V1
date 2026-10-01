@@ -18,6 +18,7 @@ from datetime import datetime
 from google_play_scraper import reviews, Sort
 
 import config as C
+import runstate
 from cleaning import clean, is_substantive, dedupe_key
 
 log = logging.getLogger("ingest")
@@ -189,6 +190,9 @@ def main():
         con = sqlite3.connect(C.DB_PATH)
         con.execute(RUNS_SCHEMA)
         con.commit()
+        stale = runstate.mark_abandoned(con, "ingest_runs")
+        if stale:
+            log.warning(f"marked {stale} earlier ingest run(s) that never finished as failed")
         watermark = get_watermark(con)
         log.info(f"newest stored review: {watermark}")
 
@@ -230,7 +234,9 @@ def main():
         log.info(f"=== run {run_id} success{' (ANOMALOUS)' if reason else ''} ===")
         return 2 if reason else 0
 
-    except Exception as e:
+    except BaseException as e:
+        # BaseException, not Exception: Ctrl+C (KeyboardInterrupt) must be recorded as a failure too.
+        # A process killed outright can't run this; runstate.mark_abandoned() covers that next time.
         log.error(f"run failed: {e!r}")
         if con is not None:
             con.rollback()

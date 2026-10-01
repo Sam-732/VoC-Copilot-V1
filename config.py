@@ -33,6 +33,8 @@ RETRY_BACKOFF_SECONDS = 20       # wait = this x attempt number
 ANOMALY_MIN_PER_DAY = 150
 ANOMALY_MAX_PER_DAY = 2000
 MIN_DAYS_FOR_RATE = 1.0          # floor on days covered, so a same-day re-run isn't judged per-hour
+RUN_STALE_HOURS = 2              # a run still marked 'running' after this long was stopped without recording;
+                                 # the next run marks it failed (runstate.py)
 
 # ---------- embedding + reduced space (v1: cluster.py) ----------
 EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"   # v1

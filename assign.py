@@ -29,6 +29,7 @@ from datetime import datetime, date, timedelta
 import numpy as np
 
 import config as C
+import runstate
 import space as S
 
 
@@ -161,6 +162,9 @@ def main():
         reset(con)
         return 0
 
+    stale = runstate.mark_abandoned(con, "assign_runs")
+    if stale:
+        print(f"marked {stale} earlier assign run(s) that never finished as failed")
     started = datetime.now().isoformat()
     bucket_before = con.execute("SELECT COUNT(*) FROM assignments WHERE status='unassigned'").fetchone()[0]
     run_id = con.execute("INSERT INTO assign_runs (started_at, status, threshold, bucket_before) "
@@ -212,7 +216,9 @@ def main():
                     (datetime.now().isoformat(), len(pending), assigned, unassigned, bucket_after,
                      new_clusters, reclustered, run_id))
         con.commit()
-    except Exception as e:
+    except BaseException as e:
+        # BaseException, not Exception: Ctrl+C (KeyboardInterrupt) must be recorded as a failure too.
+        # A process killed outright can't run this; runstate.mark_abandoned() covers that next time.
         con.rollback()
         con.execute("UPDATE assign_runs SET finished_at=?, status='failed', error=? WHERE run_id=?",
                     (datetime.now().isoformat(), repr(e), run_id))
